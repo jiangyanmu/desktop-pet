@@ -27,7 +27,7 @@ export class PetController {
 
   // 運動參數
   private moveSpeed: number = 2; // 每次移動的像素
-  private windowSize = { width: 200, height: 200 }; // 視窗大小 (需與 tauri.conf.json 一致)
+  private windowSize = { width: 100, height: 100 }; // 視窗大小 (需與 tauri.conf.json 一致)
   private screenWidth: number = 1920; // 預設值，會動態獲取
   private screenHeight: number = 1080;
 

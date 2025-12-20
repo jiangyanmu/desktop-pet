@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
-import { PetRenderer } from './lib/PetRenderer';
-import { PetController } from './lib/PetController';
-import shiroImg from './assets/shiro.png'; // 確保您已經有這張圖，或者改成您的圖片路徑
-import './App.css';
+import { useEffect, useRef } from "react";
+import { PetRenderer } from "./lib/PetRenderer";
+import { PetController } from "./lib/PetController";
+import shiroImg from "./assets/shiro.png"; // 確保您已經有這張圖，或者改成您的圖片路徑
+import "./App.css";
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -32,15 +32,18 @@ function App() {
 
             const { rowIndex, flip } = controllerRef.current.getRenderInfo();
 
-            // 動畫幀計算 (每 10 個 tick 換一張圖，控制動畫速度)
+            // 動畫幀計算 (每 50 個 tick 換一張圖，控制動畫速度)
             // 3 是總幀數 (Columns)
-            const animationSpeed = 10;
+            const animationSpeed = 50;
             const frameIndex = Math.floor(frameCount / animationSpeed) % 3;
 
             rendererRef.current.draw(
               rowIndex,
               frameIndex,
-              0, 0, 200, 200, // 填滿 200x200 視窗
+              0,
+              0,
+              100,
+              100, // 填滿 100x100 視窗
               flip
             );
           }
@@ -75,22 +78,22 @@ function App() {
       style={{
         padding: 0,
         margin: 0,
-        width: '100vw',
-        height: '100vh',
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
+        width: "100vw",
+        height: "100vh",
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
       }}
       onMouseUp={handleMouseUp} // 全局釋放偵測
     >
       <canvas
         ref={canvasRef}
-        width={200}
-        height={200}
-        style={{ width: '200px', height: '200px', cursor: 'grab' }}
+        width={100}
+        height={100}
+        style={{ width: "100px", height: "100px", cursor: "grab" }}
         onMouseDown={handleMouseDown}
-      />
+      />{" "}
     </div>
   );
 }

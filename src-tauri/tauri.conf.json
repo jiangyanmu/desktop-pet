@@ -13,12 +13,13 @@
     "windows": [
       {
         "title": "desktop-pet",
-        "width": 200,
-        "height": 200,
+        "width": 100,
+        "height": 100,
         "resizable": false,
         "transparent": true,
         "decorations": false,
-        "alwaysOnTop": true
+        "alwaysOnTop": true,
+        "shadow": false
       }
     ],
     "security": {
