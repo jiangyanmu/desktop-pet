@@ -1,50 +1,97 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { useEffect, useRef } from 'react';
+import { PetRenderer } from './lib/PetRenderer';
+import { PetController } from './lib/PetController';
+import shiroImg from './assets/shiro.png'; // 確保您已經有這張圖，或者改成您的圖片路徑
+import './App.css';
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rendererRef = useRef<PetRenderer | null>(null);
+  const controllerRef = useRef<PetController | null>(null);
+  const requestRef = useRef<number | null>(null);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+  useEffect(() => {
+    if (canvasRef.current) {
+      // 1. 初始化 Renderer 和 Controller
+      rendererRef.current = new PetRenderer(canvasRef.current, shiroImg);
+      controllerRef.current = new PetController();
+
+      // 2. 初始 Resize
+      rendererRef.current.resize();
+
+      // 3. 定義遊戲循環
+      let frameCount = 0;
+      const animate = () => {
+        if (rendererRef.current && controllerRef.current) {
+          // A. 邏輯更新
+          controllerRef.current.update();
+
+          // B. 畫面渲染
+          if (rendererRef.current.loaded) {
+            rendererRef.current.clear();
+
+            const { rowIndex, flip } = controllerRef.current.getRenderInfo();
+
+            // 動畫幀計算 (每 10 個 tick 換一張圖，控制動畫速度)
+            // 3 是總幀數 (Columns)
+            const animationSpeed = 10;
+            const frameIndex = Math.floor(frameCount / animationSpeed) % 3;
+
+            rendererRef.current.draw(
+              rowIndex,
+              frameIndex,
+              0, 0, 200, 200, // 填滿 200x200 視窗
+              flip
+            );
+          }
+        }
+
+        frameCount++;
+        requestRef.current = requestAnimationFrame(animate);
+      };
+
+      // 4. 啟動循環
+      requestRef.current = requestAnimationFrame(animate);
+
+      // 清理函數
+      return () => {
+        if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      };
+    }
+  }, []);
+
+  // 處理滑鼠事件
+  const handleMouseDown = () => {
+    controllerRef.current?.startDrag();
+  };
+
+  const handleMouseUp = () => {
+    controllerRef.current?.endDrag();
+  };
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    <div
+      className="container"
+      style={{
+        padding: 0,
+        margin: 0,
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+      onMouseUp={handleMouseUp} // 全局釋放偵測
+    >
+      <canvas
+        ref={canvasRef}
+        width={200}
+        height={200}
+        style={{ width: '200px', height: '200px', cursor: 'grab' }}
+        onMouseDown={handleMouseDown}
+      />
+    </div>
   );
 }
 
