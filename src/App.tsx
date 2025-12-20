@@ -35,11 +35,12 @@ function App() {
             // 動畫幀計算
             let frameIndex = 0;
             if (controllerRef.current.state === PetState.IDLE) {
-              // IDLE 狀態時隨機選擇一個影格 (0, 1, or 2)
-              frameIndex = Math.floor(Math.random() * 3);
+              // IDLE/PAUSE 狀態使用較慢的循環動畫
+              const idleSpeed = 60;
+              frameIndex = Math.floor(frameCount / idleSpeed) % 3;
             } else {
               // 其他狀態則正常循環動畫
-              const animationSpeed = 20; // 將動畫速度調整為20 (每20幀換一張圖)
+              const animationSpeed = 30;
               frameIndex = Math.floor(frameCount / animationSpeed) % 3;
             }
 
@@ -69,13 +70,30 @@ function App() {
     }
   }, []);
 
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      controllerRef.current?.endDrag();
+    };
+
+    // 額外偵測 mousemove，以防 drag_window 吞掉 mouseup 事件
+    // 當滑鼠移動且左鍵未按下 (buttons === 0) 時，強制結束拖拽
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (e.buttons === 0) {
+        controllerRef.current?.endDrag();
+      }
+    };
+
+    window.addEventListener("mouseup", handleGlobalMouseUp);
+    window.addEventListener("mousemove", handleGlobalMouseMove);
+    return () => {
+      window.removeEventListener("mouseup", handleGlobalMouseUp);
+      window.removeEventListener("mousemove", handleGlobalMouseMove);
+    };
+  }, []);
+
   // 處理滑鼠事件
   const handleMouseDown = () => {
     controllerRef.current?.startDrag();
-  };
-
-  const handleMouseUp = () => {
-    controllerRef.current?.endDrag();
   };
 
   return (
@@ -91,7 +109,6 @@ function App() {
         alignItems: "center",
         justifyContent: "center",
       }}
-      onMouseUp={handleMouseUp} // 全局釋放偵測
     >
       <canvas
         ref={canvasRef}
@@ -99,6 +116,7 @@ function App() {
         height={100}
         style={{ width: "100px", height: "100px", cursor: "grab" }}
         onMouseDown={handleMouseDown}
+        data-tauri-drag-region
       />{" "}
     </div>
   );

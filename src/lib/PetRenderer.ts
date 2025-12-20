@@ -3,7 +3,7 @@ export class PetRenderer {
   private ctx: CanvasRenderingContext2D;
   private image: HTMLImageElement;
   private isLoaded: boolean = false;
-  
+
   // 精靈圖設定
   private readonly rows: number = 5;
   private readonly cols: number = 3;
@@ -12,9 +12,9 @@ export class PetRenderer {
 
   constructor(canvas: HTMLCanvasElement, imageUrl: string) {
     this.canvas = canvas;
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext("2d");
     if (!context) {
-      throw new Error('Could not get 2D context from canvas');
+      throw new Error("Could not get 2D context from canvas");
     }
     this.ctx = context;
 
@@ -27,7 +27,7 @@ export class PetRenderer {
       this.spriteWidth = this.image.width / this.cols;
       this.spriteHeight = this.image.height / this.rows;
       // 圖片加載完成後，執行一次 resize 確保解析度正確
-      this.resize(); 
+      this.resize();
     };
   }
 
@@ -38,11 +38,11 @@ export class PetRenderer {
   public resize() {
     // 獲取視窗的 DPR，預設為 1
     const dpr = window.devicePixelRatio || 1;
-    
+
     // 獲取 Canvas 在 CSS 中的顯示大小 (BoundingClientRect)
     // 如果 Canvas 還沒上 DOM，可能需要外部傳入寬高，這裡假設 Canvas 已經 layout
     const rect = this.canvas.getBoundingClientRect();
-    
+
     // 如果 rect 為 0 (例如 display: none)，則不執行
     if (rect.width === 0 || rect.height === 0) return;
 
@@ -55,7 +55,7 @@ export class PetRenderer {
 
     // [抗鋸齒處理] 重要：每次調整 Canvas 大小後，Context 屬性會重置，需重新設定
     // 關閉圖片平滑處理，確保像素圖 (Pixel Art) 邊緣銳利
-    this.ctx.imageSmoothingEnabled = false; 
+    this.ctx.imageSmoothingEnabled = false;
   }
 
   /**
@@ -78,12 +78,12 @@ export class PetRenderer {
    * @param flip 是否水平翻轉 (例如向左走)
    */
   public draw(
-    actionIndex: number, 
-    frameIndex: number, 
-    x: number, 
-    y: number, 
-    width: number, 
-    height: number, 
+    actionIndex: number,
+    frameIndex: number,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
     flip: boolean = false
   ) {
     if (!this.isLoaded) return;
@@ -109,15 +109,27 @@ export class PetRenderer {
       //    向右畫 (width) 其實是向原來的左邊畫。
       this.ctx.drawImage(
         this.image,
-        sx, sy, this.spriteWidth, this.spriteHeight, // Source
-        0, 0, width, height                          // Dest (相對座標)
+        sx,
+        sy,
+        this.spriteWidth,
+        this.spriteHeight, // Source
+        0,
+        0,
+        width,
+        height // Dest (相對座標)
       );
     } else {
       // [正常繪製]
       this.ctx.drawImage(
         this.image,
-        sx, sy, this.spriteWidth, this.spriteHeight, // Source
-        x, y, width, height                          // Dest
+        sx,
+        sy,
+        this.spriteWidth,
+        this.spriteHeight, // Source
+        x,
+        y,
+        width,
+        height // Dest
       );
     }
 
