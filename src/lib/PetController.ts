@@ -3,35 +3,40 @@ import { invoke } from "@tauri-apps/api/core";
 // 定義寵物狀態
 export enum PetState {
   IDLE = "IDLE",
-  WALK_RIGHT = "WALK_RIGHT",
-  WALK_LEFT = "WALK_LEFT",
+  WALK = "WALK", // 統一行走狀態，方向由速度向量決定
   DRAGGED = "DRAGGED",
   BACK = "BACK", // 爬牆或背面
 }
 
-// 狀態與精靈圖 Row 的對映設定
-export const STATE_ROW_MAP: Record<PetState, number> = {
-  [PetState.WALK_RIGHT]: 0, // 第 1 排
-  [PetState.IDLE]: 1, // 第 2 排
-  [PetState.DRAGGED]: 2, // 第 3 排
-  [PetState.WALK_LEFT]: 3, // 第 4 排
-  [PetState.BACK]: 4, // 第 5 排
+// 狀態與精靈圖 Render Info 的對映設定
+// 這裡定義了每個狀態對應的基礎渲染資訊，翻轉邏輯將在 getRenderInfo 中根據速度動態判斷
+export const STATE_RENDER_MAP: Record<
+  PetState,
+  { rowIndex: number; flip: boolean }
+> = {
+  [PetState.WALK]: { rowIndex: 0, flip: false }, // 第 1 排 (基礎行走圖)
+  [PetState.IDLE]: { rowIndex: 1, flip: false }, // 第 2 排
+  [PetState.DRAGGED]: { rowIndex: 2, flip: false }, // 第 3 排
+  [PetState.BACK]: { rowIndex: 4, flip: false }, // 第 5 排
 };
 
 export class PetController {
   public state: PetState = PetState.IDLE;
 
-  // 狀態計時器 (frame count)
+  // 狀態計時器
   private tickCount: number = 0;
   private stateDuration: number = 0;
 
   // 運動參數
-  private moveSpeed: number = 1;
+  private speed: number = 1.5; // 移動總速度 (像素/幀)
+  private vx: number = 0; // X軸速度分量
+  private vy: number = 0; // Y軸速度分量
+
   private windowSize = { width: 100, height: 100 };
   private screenWidth: number = 1920;
   private screenHeight: number = 1080;
 
-  // 內部位置緩存
+  // 內部位置
   private currentX: number = 0;
   private currentY: number = 0;
   private isInitialized: boolean = false;
@@ -40,28 +45,18 @@ export class PetController {
     this.init();
   }
 
-  /**
-   * 初始化：獲取螢幕尺寸與當前視窗位置
-   */
   public async init() {
     try {
-      // 1. 獲取螢幕資訊 (Invoke Rust command)
       const size = await invoke<[number, number]>("get_screen_size");
       if (size) {
         this.screenWidth = size[0];
         this.screenHeight = size[1];
       }
 
-      // 2. 獲取初始位置 - 這裡我們假設初始位置是已知的或不需要從Rust獲取
-      // 如果真的需要，我們應該也透過 Rust command 獲取，但為了簡化，
-      // 我們可以先假設為 (0,0) 或者等第一次 syncPosition 更新
-      // 為了保險，我們可以加一個 get_window_position command，但這裡先跳過，
-      // 因為 update loop 會依賴 currentX/Y。
-      // 我們可以用這招：先設為螢幕中間
+      // 初始位置設在螢幕中心
       this.currentX = (this.screenWidth - this.windowSize.width) / 2;
       this.currentY = (this.screenHeight - this.windowSize.height) / 2;
 
-      // 強制設定一次位置到中間
       await this.moveWindow(this.currentX, this.currentY);
 
       this.isInitialized = true;
@@ -86,48 +81,66 @@ export class PetController {
       case PetState.IDLE:
         this.handleIdle();
         break;
-      case PetState.WALK_RIGHT:
-        await this.handleWalk(1);
-        break;
-      case PetState.WALK_LEFT:
-        await this.handleWalk(-1);
+      case PetState.WALK: // 使用新的 WALK 狀態
+        await this.handleMove();
         break;
       case PetState.DRAGGED:
-        // 拖拽時不更新位置，但在釋放時可能需要同步，
-        // 由於我們移除了 plugin，無法輕易 getPosition。
-        // 我們假設拖拽後會透過某些機制更新，或者暫時忽略位置同步問題
+        // 拖拽時不自動更新位置，但結束拖拽後會透過 setRandomIdle 重新定位並重啟運動
         break;
     }
   }
 
   private handleIdle() {
     if (this.tickCount > this.stateDuration) {
-      const rand = Math.random();
-      if (rand < 0.4) {
+      // 隨機決策：30% 繼續發呆，70% 開始移動
+      if (Math.random() < 0.3) {
         this.setRandomIdle();
-      } else if (rand < 0.7) {
-        this.switchState(PetState.WALK_RIGHT, 200 + Math.random() * 300);
       } else {
-        this.switchState(PetState.WALK_LEFT, 200 + Math.random() * 300);
+        this.startRandomMove(); // 進入多角度移動
       }
     }
   }
 
-  private async handleWalk(direction: number) {
-    this.currentX += this.moveSpeed * direction;
+  // 設定隨機移動方向和速度向量
+  private startRandomMove() {
+    // 隨機角度 0 ~ 2PI (0 ~ 360度)
+    const angle = Math.random() * Math.PI * 2;
 
-    if (
-      direction === 1 &&
-      this.currentX + this.windowSize.width >= this.screenWidth
-    ) {
-      this.switchState(PetState.WALK_LEFT, 200 + Math.random() * 300);
-      return;
-    }
-    if (direction === -1 && this.currentX <= 0) {
-      this.switchState(PetState.WALK_RIGHT, 200 + Math.random() * 300);
-      return;
+    // 隨機速度：0.5 ~ 3.5 (忽快忽慢)
+    const currentSpeed = 0.5 + Math.random() * 3.0;
+
+    this.vx = Math.cos(angle) * currentSpeed;
+    this.vy = Math.sin(angle) * currentSpeed;
+
+    // 移動 2 ~ 6 秒
+    this.switchState(PetState.WALK, 120 + Math.random() * 240);
+  }
+
+  // 處理 2D 移動與碰撞反彈
+  private async handleMove() {
+    // 1. 更新位置
+    this.currentX += this.vx;
+    this.currentY += this.vy;
+
+    // 2. X軸 邊界反彈
+    if (this.currentX <= 0) {
+      this.currentX = 0;
+      this.vx = -this.vx; // 速度反轉
+    } else if (this.currentX + this.windowSize.width >= this.screenWidth) {
+      this.currentX = this.screenWidth - this.windowSize.width;
+      this.vx = -this.vx;
     }
 
+    // 3. Y軸 邊界反彈
+    if (this.currentY <= 0) {
+      this.currentY = 0;
+      this.vy = -this.vy;
+    } else if (this.currentY + this.windowSize.height >= this.screenHeight) {
+      this.currentY = this.screenHeight - this.windowSize.height;
+      this.vy = -this.vy;
+    }
+
+    // 4. 時間結束檢查
     if (this.tickCount > this.stateDuration) {
       this.setRandomIdle();
       return;
@@ -137,6 +150,8 @@ export class PetController {
   }
 
   private setRandomIdle() {
+    this.vx = 0; // 停止移動
+    this.vy = 0;
     this.switchState(PetState.IDLE, 180 + Math.random() * 300);
   }
 
@@ -153,13 +168,10 @@ export class PetController {
 
   public endDrag() {
     if (this.state === PetState.DRAGGED) {
-      this.setRandomIdle();
-      // 在此架構下，無法獲取拖拽後的確切位置，這是一個小缺陷。
-      // 如果需要完美，必須在 Rust 端實作 get_window_position
+      this.setRandomIdle(); // 拖拽結束後回到發呆，並等待新的隨機移動
     }
   }
 
-  // 封裝 invoke 調用
   private async moveWindow(x: number, y: number) {
     try {
       await invoke("move_window", { x: Math.round(x), y: Math.round(y) });
@@ -169,18 +181,27 @@ export class PetController {
   }
 
   public getRenderInfo() {
-    let rowIndex = STATE_ROW_MAP[this.state];
-    let flip = false;
+    const renderInfo = { ...STATE_RENDER_MAP[this.state] }; // 複製一份基礎資訊
 
-    if (this.state === PetState.WALK_LEFT) {
-      rowIndex = STATE_ROW_MAP[PetState.WALK_RIGHT]; // 使用向右走的精靈圖 (Row 0)
-      flip = true; // 並進行水平翻轉
+    // 處理行走時的朝向與圖片選擇
+    if (this.state === PetState.WALK) {
+      // 1. 垂直方向判斷：如果向上移動 (vy < 0)，使用背面圖 (BACK)
+      //    我們可以設一個閾值，避免幾乎水平移動時閃爍，例如 vy < -0.1
+      if (this.vy < -0.1) {
+        renderInfo.rowIndex = STATE_RENDER_MAP[PetState.BACK].rowIndex;
+      } else {
+        // 向下或水平，維持 WALK (Row 0)
+        renderInfo.rowIndex = STATE_RENDER_MAP[PetState.WALK].rowIndex;
+      }
+
+      // 2. 水平方向判斷：如果往左移，則翻轉圖片
+      if (this.vx < 0) {
+        renderInfo.flip = true;
+      } else if (this.vx > 0) {
+        renderInfo.flip = false;
+      }
     }
 
-    return {
-      state: this.state,
-      rowIndex: rowIndex,
-      flip: flip
-    };
+    return renderInfo;
   }
 }

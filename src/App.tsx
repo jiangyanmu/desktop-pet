@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { PetRenderer } from "./lib/PetRenderer";
-import { PetController } from "./lib/PetController";
+import { PetController, PetState } from "./lib/PetController";
 import shiroImg from "./assets/shiro.png"; // 確保您已經有這張圖，或者改成您的圖片路徑
 import "./App.css";
 
@@ -32,10 +32,16 @@ function App() {
 
             const { rowIndex, flip } = controllerRef.current.getRenderInfo();
 
-            // 動畫幀計算 (每 50 個 tick 換一張圖，控制動畫速度)
-            // 3 是總幀數 (Columns)
-            const animationSpeed = 50;
-            const frameIndex = Math.floor(frameCount / animationSpeed) % 3;
+            // 動畫幀計算
+            let frameIndex = 0;
+            if (controllerRef.current.state === PetState.IDLE) {
+              // IDLE 狀態時隨機選擇一個影格 (0, 1, or 2)
+              frameIndex = Math.floor(Math.random() * 3);
+            } else {
+              // 其他狀態則正常循環動畫
+              const animationSpeed = 20; // 將動畫速度調整為20 (每20幀換一張圖)
+              frameIndex = Math.floor(frameCount / animationSpeed) % 3;
+            }
 
             rendererRef.current.draw(
               rowIndex,
