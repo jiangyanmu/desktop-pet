@@ -43,13 +43,19 @@ fn get_window_position(window: tauri::Window) -> Result<(f64, f64), String> {
     }
 }
 
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             get_screen_size,
             move_window,
             drag_window,
-            get_window_position
+            get_window_position,
+            quit_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

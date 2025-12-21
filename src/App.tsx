@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { PetRenderer } from "./lib/PetRenderer";
 import { PetController, PetState } from "./lib/PetController";
 import shiroImg from "./assets/shiro.png"; // 確保您已經有這張圖，或者改成您的圖片路徑
@@ -88,6 +90,39 @@ function App() {
     return () => {
       window.removeEventListener("mouseup", handleGlobalMouseUp);
       window.removeEventListener("mousemove", handleGlobalMouseMove);
+    };
+  }, []);
+
+  useEffect(() => {
+    let menu: Menu | null = null;
+
+    const setupMenu = async () => {
+      const quitItem = await MenuItem.new({
+        id: "quit",
+        text: "關閉小白",
+        action: () => {
+          invoke("quit_app");
+        },
+      });
+
+      menu = await Menu.new({
+        items: [quitItem],
+      });
+    };
+
+    setupMenu();
+
+    const handleContextMenu = async (e: MouseEvent) => {
+      e.preventDefault();
+      if (menu) {
+        await menu.popup();
+      }
+    };
+
+    document.addEventListener("contextmenu", handleContextMenu);
+
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
     };
   }, []);
 

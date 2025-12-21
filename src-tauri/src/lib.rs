@@ -19,11 +19,16 @@ fn get_screen_size(window: tauri::Window) -> Option<(u32, u32)> {
     window.current_monitor().ok().flatten().map(|m| (m.size().width, m.size().height))
 }
 
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, move_window, drag_window, get_screen_size])
+        .invoke_handler(tauri::generate_handler![greet, move_window, drag_window, get_screen_size, quit_app])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
