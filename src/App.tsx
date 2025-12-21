@@ -5,11 +5,11 @@ import {
   Submenu,
   PredefinedMenuItem,
 } from "@tauri-apps/api/menu";
-import { exit } from "@tauri-apps/plugin-process";
 import { PetRenderer } from "./lib/PetRenderer";
 import { PetController, PetState } from "./lib/PetController";
 import shiroImg from "./assets/shiro.png"; // 確保您已經有這張圖，或者改成您的圖片路徑
 import "./App.css";
+import { invoke } from "@tauri-apps/api/core";
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -102,23 +102,7 @@ function App() {
     let menu: Menu | null = null;
 
     const createMenu = async () => {
-      // 1. 照顧小白 Submenu
-      const feedItem = await MenuItem.new({
-        id: "feed",
-        text: "🍗 餵食 (Feed)",
-        action: () => alert("小白吃飽了！(功能待實作)"),
-      });
-      const bathItem = await MenuItem.new({
-        id: "bath",
-        text: "🛁 洗澡 (Bath)",
-        action: () => alert("小白變乾淨了！(功能待實作)"),
-      });
-      const careSubmenu = await Submenu.new({
-        text: "🍖 照顧小白...",
-        items: [feedItem, bathItem],
-      });
-
-      // 2. 動作切換 Submenu
+      // 動作切換 Submenu
       const actionItems = await Promise.all([
         MenuItem.new({
           text: "🚶 Row 0: 行走 (Walk)",
@@ -146,7 +130,7 @@ function App() {
         items: actionItems,
       });
 
-      // 3. 系統功能
+      // 系統功能
       const sep1 = await PredefinedMenuItem.new({ item: "Separator" });
 
       const settingsItem = await MenuItem.new({
@@ -161,17 +145,17 @@ function App() {
 
       const quitItem = await MenuItem.new({
         id: "quit",
-        text: "🏠 送小白回家 (關閉)",
+        text: "🏠 送小白回家",
         // @ts-ignore
         icon: "Close",
         action: () => {
-          exit(0);
+          invoke("quit_app");
         },
       });
 
       // 4. 組合主選單
       menu = await Menu.new({
-        items: [careSubmenu, actionSubmenu, sep1, settingsItem, sep2, quitItem],
+        items: [actionSubmenu, sep1, settingsItem, sep2, quitItem],
       });
     };
 

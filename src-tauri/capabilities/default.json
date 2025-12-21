@@ -12,6 +12,7 @@
     "core:menu:default",
     "core:menu:allow-new",
     "core:menu:allow-popup",
-    "process:allow-exit"
+    "process:allow-exit",
+    "process:default"
   ]
 }
