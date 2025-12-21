@@ -5,6 +5,7 @@ export enum PetState {
   IDLE = "IDLE",
   WALK = "WALK",
   DRAGGED = "DRAGGED",
+  SLEEP = "SLEEP",
   BACK = "BACK",
 }
 
@@ -16,6 +17,7 @@ export const STATE_RENDER_MAP: Record<
   [PetState.WALK]: { rowIndex: 0, flip: false },
   [PetState.IDLE]: { rowIndex: 1, flip: false },
   [PetState.DRAGGED]: { rowIndex: 2, flip: false },
+  [PetState.SLEEP]: { rowIndex: 3, flip: false },
   [PetState.BACK]: { rowIndex: 4, flip: false },
 };
 
@@ -167,6 +169,14 @@ export class PetController {
     this.state = newState;
     this.stateDuration = duration;
     this.tickCount = 0;
+  }
+
+  public setAction(newState: PetState) {
+    this.vx = 0;
+    this.vy = 0;
+    this.targetSpeed = 0;
+    this.switchState(newState);
+    console.log(`Action switched to: ${newState}`);
   }
 
   // 拖拽開始

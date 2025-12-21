@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { Menu, MenuItem } from "@tauri-apps/api/menu";
+import {
+  Menu,
+  MenuItem,
+  Submenu,
+  PredefinedMenuItem,
+} from "@tauri-apps/api/menu";
+import { exit } from "@tauri-apps/plugin-process";
 import { PetRenderer } from "./lib/PetRenderer";
 import { PetController, PetState } from "./lib/PetController";
 import shiroImg from "./assets/shiro.png"; // 確保您已經有這張圖，或者改成您的圖片路徑
@@ -96,21 +101,81 @@ function App() {
   useEffect(() => {
     let menu: Menu | null = null;
 
-    const setupMenu = async () => {
+    const createMenu = async () => {
+      // 1. 照顧小白 Submenu
+      const feedItem = await MenuItem.new({
+        id: "feed",
+        text: "🍗 餵食 (Feed)",
+        action: () => alert("小白吃飽了！(功能待實作)"),
+      });
+      const bathItem = await MenuItem.new({
+        id: "bath",
+        text: "🛁 洗澡 (Bath)",
+        action: () => alert("小白變乾淨了！(功能待實作)"),
+      });
+      const careSubmenu = await Submenu.new({
+        text: "🍖 照顧小白...",
+        items: [feedItem, bathItem],
+      });
+
+      // 2. 動作切換 Submenu
+      const actionItems = await Promise.all([
+        MenuItem.new({
+          text: "🚶 Row 0: 行走 (Walk)",
+          action: () => controllerRef.current?.setAction(PetState.WALK),
+        }),
+        MenuItem.new({
+          text: "🧘 Row 1: 待機 (Idle)",
+          action: () => controllerRef.current?.setAction(PetState.IDLE),
+        }),
+        MenuItem.new({
+          text: "✊ Row 2: 拖拽 (Drag)",
+          action: () => controllerRef.current?.setAction(PetState.DRAGGED),
+        }),
+        MenuItem.new({
+          text: "😴 Row 3: 睡覺 (Sleep)",
+          action: () => controllerRef.current?.setAction(PetState.SLEEP),
+        }),
+        MenuItem.new({
+          text: "🍑 Row 4: 背影 (Back)",
+          action: () => controllerRef.current?.setAction(PetState.BACK),
+        }),
+      ]);
+      const actionSubmenu = await Submenu.new({
+        text: "🎭 動作切換...",
+        items: actionItems,
+      });
+
+      // 3. 系統功能
+      const sep1 = await PredefinedMenuItem.new({ item: "Separator" });
+
+      const settingsItem = await MenuItem.new({
+        id: "settings",
+        text: "⚙️ 設定 (Settings)",
+        // @ts-ignore
+        icon: "Settings",
+        action: () => alert("設定選單 (待實作)"),
+      });
+
+      const sep2 = await PredefinedMenuItem.new({ item: "Separator" });
+
       const quitItem = await MenuItem.new({
         id: "quit",
-        text: "關閉小白",
+        text: "🏠 送小白回家 (關閉)",
+        // @ts-ignore
+        icon: "Close",
         action: () => {
-          invoke("quit_app");
+          exit(0);
         },
       });
 
+      // 4. 組合主選單
       menu = await Menu.new({
-        items: [quitItem],
+        items: [careSubmenu, actionSubmenu, sep1, settingsItem, sep2, quitItem],
       });
     };
 
-    setupMenu();
+    createMenu();
 
     const handleContextMenu = async (e: MouseEvent) => {
       e.preventDefault();

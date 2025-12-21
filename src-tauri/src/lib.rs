@@ -28,6 +28,7 @@ fn quit_app(app: tauri::AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![greet, move_window, drag_window, get_screen_size, quit_app])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
