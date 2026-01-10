@@ -1,21 +1,24 @@
 import { useEffect, useRef } from "react";
-import {
-  Menu,
-  MenuItem,
-  Submenu,
-  PredefinedMenuItem,
-} from "@tauri-apps/api/menu";
 import { PetRenderer } from "./lib/PetRenderer";
 import { PetController, PetState } from "./lib/PetController";
+import { initSystemTray, destroySystemTray } from "./lib/Tray";
 import shiroImg from "./assets/shiro.png"; // 確保您已經有這張圖，或者改成您的圖片路徑
 import "./App.css";
-import { invoke } from "@tauri-apps/api/core";
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<PetRenderer | null>(null);
   const controllerRef = useRef<PetController | null>(null);
   const requestRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    initSystemTray();
+
+    // Cleanup function to remove tray on unmount/reload
+    return () => {
+      destroySystemTray();
+    };
+  }, []);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -95,83 +98,6 @@ function App() {
     return () => {
       window.removeEventListener("mouseup", handleGlobalMouseUp);
       window.removeEventListener("mousemove", handleGlobalMouseMove);
-    };
-  }, []);
-
-  useEffect(() => {
-    let menu: Menu | null = null;
-
-    const createMenu = async () => {
-      // 動作切換 Submenu
-      const actionItems = await Promise.all([
-        MenuItem.new({
-          text: "🚶 Row 0: 行走 (Walk)",
-          action: () => controllerRef.current?.setAction(PetState.WALK),
-        }),
-        MenuItem.new({
-          text: "🧘 Row 1: 待機 (Idle)",
-          action: () => controllerRef.current?.setAction(PetState.IDLE),
-        }),
-        MenuItem.new({
-          text: "✊ Row 2: 拖拽 (Drag)",
-          action: () => controllerRef.current?.setAction(PetState.DRAGGED),
-        }),
-        MenuItem.new({
-          text: "😴 Row 3: 睡覺 (Sleep)",
-          action: () => controllerRef.current?.setAction(PetState.SLEEP),
-        }),
-        MenuItem.new({
-          text: "🍑 Row 4: 背影 (Back)",
-          action: () => controllerRef.current?.setAction(PetState.BACK),
-        }),
-      ]);
-      const actionSubmenu = await Submenu.new({
-        text: "🎭 動作切換...",
-        items: actionItems,
-      });
-
-      // 系統功能
-      const sep1 = await PredefinedMenuItem.new({ item: "Separator" });
-
-      const settingsItem = await MenuItem.new({
-        id: "settings",
-        text: "⚙️ 設定 (Settings)",
-        // @ts-ignore
-        icon: "Settings",
-        action: () => alert("設定選單 (待實作)"),
-      });
-
-      const sep2 = await PredefinedMenuItem.new({ item: "Separator" });
-
-      const quitItem = await MenuItem.new({
-        id: "quit",
-        text: "🏠 送小白回家",
-        // @ts-ignore
-        icon: "Close",
-        action: () => {
-          invoke("quit_app");
-        },
-      });
-
-      // 4. 組合主選單
-      menu = await Menu.new({
-        items: [actionSubmenu, sep1, settingsItem, sep2, quitItem],
-      });
-    };
-
-    createMenu();
-
-    const handleContextMenu = async (e: MouseEvent) => {
-      e.preventDefault();
-      if (menu) {
-        await menu.popup();
-      }
-    };
-
-    document.addEventListener("contextmenu", handleContextMenu);
-
-    return () => {
-      document.removeEventListener("contextmenu", handleContextMenu);
     };
   }, []);
 
