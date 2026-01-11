@@ -3,28 +3,28 @@ name: "Release CI"
 on:
   push:
     tags:
-      - 'v*' # 當你推送以 v 開頭的 tag 時觸發，例如 v1.0.0
+      - 'v*' # 當你推送 v1.0.0 等標籤時觸發
 
 jobs:
   publish:
     permissions:
-      contents: write
+      contents: write # 官方強調：必須有寫入權限才能建立 Release
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest" # 打包 (.dmg, .app)
-            args: "--target universal-apple-darwin"
-          - platform: "ubuntu-22.04" # 打包 (.deb, .appimage)
+          - platform: "macos-latest"
+            args: "--target universal-apple-darwin" # 支援 Intel 與 Apple Silicon
+          - platform: "ubuntu-22.04"
             args: ""
-          - platform: "windows-latest" # 打包 (.msi, .exe)
+          - platform: "windows-latest"
             args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: setup node
+      - name: install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -32,7 +32,7 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          # 針對 macOS 打包 Intel 與 Apple Silicon 通用版本
+          # 針對 macOS 交叉編譯所需的 Target
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: install dependencies (ubuntu only)
@@ -42,13 +42,14 @@ jobs:
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: install frontend dependencies
-        run: npm install # 如果你用 pnpm 或 yarn，請更換指令
+        run: npm install # 如果使用 pnpm，請改為 pnpm install
 
-      - uses: tauri-apps/tauri-action@v2
+      - name: build and release
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__ # 自動使用 package.json 中的版本號
+          tagName: v__VERSION__ # 自動抓取 tauri.conf.json 裡的版本號
           releaseName: "ShiroPet v__VERSION__"
           releaseBody: "See the assets below to download the latest version."
           releaseDraft: true
