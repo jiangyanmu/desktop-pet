@@ -5,13 +5,10 @@ import "./Menu.css";
 
 export default function PetMenu() {
   useEffect(() => {
-    const win = getCurrentWindow();
-
     // 失去焦點時隱藏選單 (模擬原生 Context Menu 行為)
     // const unlistenPromise = win.listen("tauri://blur", () => {
     //   win.hide();
     // });
-
     // return () => {
     //   unlistenPromise.then((unlisten) => unlisten());
     // };
@@ -31,13 +28,13 @@ export default function PetMenu() {
       onContextMenu={(e) => e.preventDefault()}
     >
       <div className="menu-title">Desktop Pet</div>
-      
+
       <button className="menu-item" onClick={() => alert("設定 (尚未實作)")}>
         設定...
       </button>
-      
+
       <div className="menu-separator" />
-      
+
       <button className="menu-item danger" onClick={handleQuit}>
         關閉小白
       </button>
