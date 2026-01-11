@@ -1,0 +1,56 @@
+name: "Release CI"
+
+on:
+  push:
+    tags:
+      - 'v*' # 當你推送以 v 開頭的 tag 時觸發，例如 v1.0.0
+
+jobs:
+  publish:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-latest" # 打包 (.dmg, .app)
+            args: "--target universal-apple-darwin"
+          - platform: "ubuntu-22.04" # 打包 (.deb, .appimage)
+            args: ""
+          - platform: "windows-latest" # 打包 (.msi, .exe)
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # 針對 macOS 打包 Intel 與 Apple Silicon 通用版本
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: install frontend dependencies
+        run: npm install # 如果你用 pnpm 或 yarn，請更換指令
+
+      - uses: tauri-apps/tauri-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__ # 自動使用 package.json 中的版本號
+          releaseName: "ShiroPet v__VERSION__"
+          releaseBody: "See the assets below to download the latest version."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
