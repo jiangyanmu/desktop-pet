@@ -54,6 +54,7 @@ fn main() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![]),
         ))
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             get_screen_size,
             move_window,
