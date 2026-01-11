@@ -1,13 +1,14 @@
 import { TrayIcon } from "@tauri-apps/api/tray";
-import { Menu } from "@tauri-apps/api/menu";
+import { Menu, CheckMenuItem, MenuItem } from "@tauri-apps/api/menu";
 import { defaultWindowIcon } from "@tauri-apps/api/app";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Window } from "@tauri-apps/api/window";
 import { exit } from "@tauri-apps/plugin-process";
 import { Image } from "@tauri-apps/api/image";
-// @ts-ignore
+import { isEnabled, enable, disable } from "@tauri-apps/plugin-autostart";
 import shiroPath from "../assets/shiro.png";
 
 const TRAY_ID = "desktop-pet-tray";
+const MAIN_WINDOW_LABEL = "main"; // 請確保與 tauri.conf.json 中的 label 一致
 let isInitializing = false;
 let isInitialized = false;
 
@@ -15,7 +16,7 @@ export async function initSystemTray() {
   if (isInitializing || isInitialized) return;
   isInitializing = true;
 
-  // Prevent duplicate tray icons via API check as a secondary measure
+  // 1. 檢查托盤是否已存在
   const existingTray = await TrayIcon.getById(TRAY_ID);
   if (existingTray) {
     isInitializing = false;
@@ -24,82 +25,94 @@ export async function initSystemTray() {
   }
 
   try {
+    // 2. 獲取視窗實例
+    const mainWin = await Window.getByLabel(MAIN_WINDOW_LABEL);
+    if (!mainWin) throw new Error("找不到主視窗");
+
+    // 3. 處理圖標
     let icon = await defaultWindowIcon();
-
     if (!icon) {
-      console.warn(
-        "defaultWindowIcon() returned null. Falling back to local asset."
-      );
-      // Fallback: Load local image manually
+      console.warn("使用備用圖標");
       const response = await fetch(shiroPath);
-      const blob = await response.blob();
-      const arrayBuffer = await blob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      icon = await Image.fromBytes(uint8Array);
+      const arrayBuffer = await (await response.blob()).arrayBuffer();
+      icon = await Image.fromBytes(new Uint8Array(arrayBuffer));
     }
 
-    if (!icon) {
-      throw new Error("Failed to load any icon for tray.");
-    }
+    if (!icon) throw new Error("無法加載托盤圖標");
 
-    // Create Menu Items
+    // 4. 建立「開機自啟動」選單
+    const autostartItem = await CheckMenuItem.new({
+      text: "開機自啟動",
+      checked: await isEnabled(),
+      action: async () => {
+        const active = await isEnabled();
+        active ? await disable() : await enable();
+      },
+    });
+
+    // 5. 建立「顯示寵物」選單 (核心邏輯修改處)
+    const toggleVisibleItem = await CheckMenuItem.new({
+      text: "顯示寵物",
+      checked: await mainWin.isVisible(),
+      action: async () => {
+        // 重要：CheckMenuItem 被點擊時，其 checked 狀態會先自動翻轉
+        // 我們根據「翻轉後」的狀態來決定視窗顯示或隱藏
+        const isNowChecked = await toggleVisibleItem.isChecked();
+        if (isNowChecked) {
+          await mainWin.show();
+          await mainWin.setFocus();
+        } else {
+          await mainWin.hide();
+        }
+      },
+    });
+
+    // 6. 建立退出選單
+    const quitItem = await MenuItem.new({
+      id: "quit",
+      text: "完全退出",
+      action: async () => {
+        await exit(0);
+      },
+    });
+
+    // 7. 組合選單
     const menu = await Menu.new({
       items: [
-        {
-          id: "show",
-          text: "顯示寵物",
-          action: async () => {
-            const win = getCurrentWindow();
-            await win.show();
-            await win.setFocus();
-          },
-        },
-        {
-          id: "hide",
-          text: "隱藏寵物",
-          action: async () => {
-            const win = getCurrentWindow();
-            await win.hide();
-          },
-        },
-        {
-          item: "Separator",
-        },
-        {
-          id: "quit",
-          text: "完全退出",
-          action: async () => {
-            await exit(0);
-          },
-        },
+        toggleVisibleItem,
+        { item: "Separator" },
+        autostartItem,
+        { item: "Separator" },
+        quitItem,
       ],
     });
 
-    // Create Tray Icon
+    // 8. 建立托盤圖標並綁定左鍵點擊
     await TrayIcon.new({
       id: TRAY_ID,
       icon,
       menu,
       tooltip: "Desktop Pet",
       action: async (event) => {
-        // Handle Left Click for Toggle
+        // 處理左鍵點擊托盤：切換顯隱並同步選單勾選狀態
         if (event.type === "Click" && event.button === "Left") {
-          const win = getCurrentWindow();
-          const isVisible = await win.isVisible();
+          const isVisible = await mainWin.isVisible();
           if (isVisible) {
-            await win.hide();
+            await mainWin.hide();
+            await toggleVisibleItem.setChecked(false); // 手動同步選單勾選
           } else {
-            await win.show();
-            await win.setFocus();
+            await mainWin.show();
+            await mainWin.setFocus();
+            await toggleVisibleItem.setChecked(true); // 手動同步選單勾選
           }
         }
       },
     });
 
-    console.log("System Tray initialized successfully");
+    console.log("系統托盤初始化成功");
     isInitialized = true;
   } catch (error) {
-    console.error("Failed to initialize system tray:", error);
+    console.error("系統托盤初始化失敗:", error);
   } finally {
     isInitializing = false;
   }
@@ -110,11 +123,11 @@ export async function destroySystemTray() {
     const tray = await TrayIcon.getById(TRAY_ID);
     if (tray) {
       await tray.close();
-      console.log("System Tray destroyed");
+      console.log("系統托盤已銷毀");
     }
     isInitialized = false;
     isInitializing = false;
   } catch (err) {
-    console.error("Failed to destroy tray:", err);
+    console.error("銷毀托盤失敗:", err);
   }
 }

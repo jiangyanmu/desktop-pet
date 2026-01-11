@@ -50,6 +50,10 @@ fn quit_app(app: tauri::AppHandle) {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![]),
+        ))
         .invoke_handler(tauri::generate_handler![
             get_screen_size,
             move_window,

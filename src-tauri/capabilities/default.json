@@ -8,7 +8,13 @@
     "core:window:allow-start-dragging",
     "core:window:allow-set-position",
     "core:window:allow-outer-position",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-is-visible",
+    "core:window:allow-set-focus",
+
     "core:app:allow-default-window-icon",
+
     "core:tray:default",
     "core:tray:allow-new",
     "core:tray:allow-set-icon",
@@ -16,11 +22,21 @@
     "core:tray:allow-set-title",
     "core:tray:allow-set-tooltip",
     "core:tray:allow-set-visible",
+
     "core:image:default",
+
     "core:menu:default",
     "core:menu:allow-new",
     "core:menu:allow-popup",
+    "core:menu:allow-set-checked",
+    "core:menu:allow-is-checked",
+
     "process:allow-exit",
-    "process:default"
+    "process:default",
+
+    "autostart:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
   ]
 }
